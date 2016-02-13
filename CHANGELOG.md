@@ -1,3 +1,33 @@
+:warning: mkrakowitzer-deploy support will be dropped next major release. It will be replaced by puppet-archive.
+
+:warning: The jira::facts class will be included by default in next major release. You may get a Error: Duplicate declaration: Class[jira::facts] is already declared 
+
+##2015-08-05 - Release 1.3.0
+###Summary
+- Add SSL Support #76
+- Resolve issue where rake lint tasks always exited with 0 status
+- added new parameter disable_notifications in relation to setenv.sh
+- Add examples
+ 
+##2015-04-25 - Release 1.2.1
+###Summary
+- Update metadata, README, CHANGELOG to point to new namespace.
+- Update .travis.yml to auto deploy tagged versions
+
+##2015-04-16 - Release 1.2.0
+- Issue #51 Make the jira users shell configurable
+- Add a notify and subscribe options to the jira service
+- Added oracle to db input validator
+- Turn on the AJP connector based on a hiera or puppet-variable lookup
+- Added Microsoft SQL Server support
+- Include jira::facts class by default.
+- Adding new feature generating a content.xml configuration
+- Add a notify and subscribe options to the jira service
+- Provide ability to set the bind address of Tomcat via the jira::tomcatAddress parameter
+- Bump jira version to 6.4.1
+
+Thanks to Scott Searcy, Oliver Bertuch, Paul Geringer, Eric Shamow, William Lieurance, Doug Neal for their contributions.
+
 ##2014-01-21 - Release 1.1.5
 - Add beaker tests for MySQL
 - Added support for Oracle and Scientific Linux

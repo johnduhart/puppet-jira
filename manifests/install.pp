@@ -40,7 +40,17 @@ class jira::install {
     }
   }
 
-  $file = "atlassian-${jira::product}-${jira::version}.${jira::format}"
+  # Examples of product tarballs from Atlassian
+  # Core                - atlassian-jira-core-7.0.3.tar.gz
+  # Software (pre-7)    - atlassian-jira-6.4.12.tar.gz
+  # Software (7 and up) - atlassian-jira-software-7.0.4-jira-7.0.4.tar.gz
+
+  if ((versioncmp($jira::version, '7.0.0') < 0) or ($jira::product_name == 'jira-core')) {
+    $file = "atlassian-${jira::product_name}-${jira::version}.${jira::format}"
+  } else {
+    $file = "atlassian-${jira::product_name}-${jira::version}-jira-${jira::version}.${jira::format}"
+  }
+
   if $jira::staging_or_deploy == 'staging' {
 
     require staging
@@ -103,13 +113,14 @@ class jira::install {
 
   if $jira::db == 'mysql' and $jira::mysql_connector_manage {
     if $jira::staging_or_deploy == 'staging' {
-      class { 'jira::mysql_connector':
+      class { '::jira::mysql_connector':
         require => Staging::Extract[$file],
       }
     } elsif $jira::staging_or_deploy == 'deploy' {
-      class { 'jira::mysql_connector':
+      class { '::jira::mysql_connector':
         require => Deploy::File[$file],
       }
     }
+    contain ::jira::mysql_connector
   }
 }

@@ -13,7 +13,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 # -----------------------------------------------------------------------------
-class jira::config {
+class jira::config inherits jira {
 
   File {
     owner => $jira::user,
@@ -73,4 +73,21 @@ class jira::config {
     require => Class['jira::install'],
     notify  => Class['jira::service'],
   }
+
+  file { "${jira::homedir}/jira-config.properties":
+    content => template('jira/jira-config.properties.erb'),
+    mode    => '0600',
+    require => [ Class['jira::install'],File[$jira::homedir] ],
+    notify  => Class['jira::service'],
+  }
+
+  if $jira::datacenter {
+    file { "${jira::homedir}/cluster.properties":
+      content => template('jira/cluster.properties.erb'),
+      mode    => '0600',
+      require => [ Class['jira::install'],File[$jira::homedir] ],
+      notify  => Class['jira::service'],
+    }
+  }
+
 }

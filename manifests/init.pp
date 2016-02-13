@@ -18,7 +18,7 @@
 # This module is used to install Jira.
 #
 # See README.md for more details
-# 
+#
 # === Authors
 #
 # Bryce Johnson
@@ -33,7 +33,7 @@
 class jira (
 
   # Jira Settings
-  $version      = '6.3.13',
+  $version      = '6.4.1',
   $product      = 'jira',
   $format       = 'tar.gz',
   $installdir   = '/opt/jira',
@@ -43,6 +43,13 @@ class jira (
   $uid          = undef,
   $gid          = undef,
   $shell        = '/bin/true',
+
+  # Advanced configuration options
+  $enable_secure_admin_sessions = true,
+  $jira_config_properties    = {},
+
+  $datacenter   = false,
+  $shared_homedir = undef,
 
   # Database Settings
   $db                      = 'postgresql',
@@ -55,6 +62,7 @@ class jira (
   $dbtype                  = 'postgres72',
   $dburl                   = undef,
   $poolsize                = '20',
+  $dbschema                = 'public',
 
   # MySQL Connector Settings
   $mysql_connector_manage  = true,
@@ -62,8 +70,7 @@ class jira (
   $mysql_connector_product = 'mysql-connector-java',
   $mysql_connector_format  = 'tar.gz',
   $mysql_connector_install = '/opt/MySQL-connector',
-  $mysql_connector_URL     = 'http://cdn.mysql.com/Downloads/Connector-J',
-
+  $mysql_connector_URL     = 'https://dev.mysql.com/get/Downloads/Connector-J',
 
   # Configure database settings if you are pooling connections
   $enable_connection_pooling = false,
@@ -88,7 +95,8 @@ class jira (
   $java_opts    = '',
 
   # Misc Settings
-  $downloadURL  = 'http://www.atlassian.com/software/jira/downloads/binary/',
+  $downloadURL           = 'https://downloads.atlassian.com/software/jira/downloads/',
+  $disable_notifications = false,
 
   # Choose whether to use nanliu-staging, or mkrakowitzer-deploy
   # Defaults to nanliu-staging as it is puppetlabs approved.
@@ -106,12 +114,27 @@ class jira (
   $stop_jira = 'service jira stop && sleep 15',
 
   # Tomcat
-  $tomcatPort = 8080,
+  $tomcatAddress               = undef,
+  $tomcatPort                  = 8080,
+  $tomcatShutdownPort          = 8005,
+  $tomcatMaxHttpHeaderSize     = '8192',
+  $tomcatMinSpareThreads       = '25',
+  $tomcatConnectionTimeout     = '20000',
+  $tomcatEnableLookups         = false,
+  $tomcatNativeSsl             = false,
+  $tomcatHttpsPort             = 8443,
+  $tomcatProtocol              = 'HTTP/1.1',
+  $tomcatUseBodyEncodingForURI = true,
+  $tomcatDisableUploadTimeout  = true,
+  $tomcatKeyAlias              = 'jira',
+  $tomcatKeystoreFile          = '/home/jira/jira.jks',
+  $tomcatKeystorePass          = 'changeit',
+  $tomcatKeystoreType          = 'JKS',
 
   # Tomcat Tunables
   $tomcatMaxThreads  = '150',
   $tomcatAcceptCount = '100',
-  
+
   # Reverse https proxy
   $proxy = {},
   # Options for the AJP connector
@@ -129,8 +152,23 @@ class jira (
   validate_hash($proxy)
   validate_re($contextpath, ['^$', '^/.*'])
   validate_hash($resources)
+  validate_hash($ajp)
+  validate_bool($tomcatNativeSsl)
+  validate_absolute_path($tomcatKeystoreFile)
+  validate_re($tomcatKeystoreType, '^(JKS|JCEKS|PKCS12)$')
 
-  if $::jira_version {
+  if $datacenter and !$shared_homedir {
+    fail("\$shared_homedir must be set when \$datacenter is true")
+  }
+
+  # The default Jira product starting with version 7 is 'jira-software'
+  if ((versioncmp($version, '7.0.0') > 0) and ($product == 'jira')) {
+    $product_name = 'jira-software'
+  } else {
+    $product_name = $product
+  }
+
+  if defined('$::jira_version') {
     # If the running version of JIRA is less than the expected version of JIRA
     # Shut it down in preparation for upgrade.
     if versioncmp($version, $::jira_version) > 0 {
@@ -139,7 +177,7 @@ class jira (
     }
   }
 
-  $webappdir    = "${installdir}/atlassian-${product}-${version}-standalone"
+  $webappdir    = "${installdir}/atlassian-${product_name}-${version}-standalone"
   if $dburl {
     $dburl_real = $dburl
   }
@@ -151,6 +189,21 @@ class jira (
       'sqlserver'  => "jdbc:jtds:${db}://${dbserver}:${dbport}/${dbname}"
     }
   }
+
+  if ! empty($ajp) {
+    if ! has_key($ajp, 'port') {
+      fail('You need to specify a valid port for the AJP connector.')
+    } else {
+      validate_re($ajp['port'], '^\d+$')
+    }
+    if ! has_key($ajp, 'protocol') {
+      fail('You need to specify a valid protocol for the AJP connector.')
+    } else {
+      validate_re($ajp['protocol'], ['^AJP/1.3$', '^org.apache.coyote.ajp'])
+    }
+  }
+  
+  $merged_jira_config_properties = merge({'jira.websudo.is.disabled' => !$enable_secure_admin_sessions}, $jira_config_properties)
 
   anchor { 'jira::start':
   } ->
